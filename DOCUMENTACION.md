@@ -74,6 +74,8 @@ lib/
 - ✅ Serialización de datos faciales a formato JSON
 - ✅ Validación de calidad del rostro detectado
 - ✅ Feedback visual para guiar al usuario
+- ✅ Almacenamiento seguro de datos faciales
+- ✅ Visualización de estado de detección en pantalla
 
 ## Problemas Resueltos
 
@@ -81,6 +83,7 @@ lib/
 2. **Compatibilidad de tipos**: Ajustes en la conversión de tipos para evitar errores en serialización
 3. **Configuración del detector**: Actualización de parámetros para usar las API correctas de ML Kit
 4. **Gestión de ciclo de vida**: Implementación adecuada para liberar recursos cuando la aplicación cambia de estado
+5. **Logging y feedback**: Eliminación de llamadas a `print()` y mejora del feedback visual en UI
 
 ## Próximos Pasos
 
@@ -108,7 +111,7 @@ lib/
    - Minimizar uso de recursos para dispositivos de gama baja
 
 2. **Características adicionales**
-   - Almacenamiento seguro de modelos faciales
+   - ✅ Almacenamiento seguro de modelos faciales (implementado)
    - Comparación entre rostros detectados
    - Detección de liveness (para prevenir spoofing)
 
@@ -141,6 +144,21 @@ flutter run -d android
 flutter run
 ```
 
+## Implementación del Almacenamiento Seguro
+
+Se ha implementado un sistema de almacenamiento seguro para los datos biométricos faciales:
+
+1. **Proceso de almacenamiento:**
+   - Cuando se detecta un rostro válido, se serializa a formato JSON
+   - Se almacena en Flutter Secure Storage con una clave única basada en timestamp
+   - Se mantiene referencia al último rostro almacenado para fácil recuperación
+
+2. **Información mostrada al usuario:**
+   - Estado actual de la detección facial
+   - Timestamp de la última detección exitosa
+   - Mensajes informativos sobre éxitos y errores
+   - Panel informativo con feedback en tiempo real
+
 ## Notas Importantes
 
 - La aplicación está enfocada inicialmente solo en Android
@@ -150,4 +168,4 @@ flutter run
 
 ---
 
-*Documentación generada el 2 de julio de 2025*
+*Documentación actualizada el 2 de julio de 2025*

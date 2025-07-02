@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/face_detector_service.dart';
 import '../widgets/camera_view.dart';
 import '../utils/permission_utils.dart';
@@ -20,6 +21,13 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
   List<CameraDescription> _cameras = [];
   bool _isFaceValid = false;
   bool _isProcessing = false;
+  
+  // Almacenamiento seguro
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  
+  // Información del rostro detectado
+  String _lastDetectedFaceInfo = 'Ningún rostro detectado aún';
+  DateTime? _lastDetectionTime;
   
   @override
   void initState() {
@@ -65,7 +73,9 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
       _cameras = await availableCameras();
       await _initializeCamera();
     } catch (e) {
-      print('Error al configurar las cámaras: $e');
+      setState(() {
+        _lastDetectedFaceInfo = 'Error al configurar las cámaras';
+      });
     }
   }
   
@@ -105,8 +115,15 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
           // Acción cuando se detecta un rostro válido
           if (isValid && !_isProcessing) {
             _isProcessing = true;
-            print('Rostro válido detectado: ${faces.first.toJsonString()}');
-            // Aquí podrías guardar o enviar el rostro detectado
+            
+            // Guardar en almacenamiento seguro
+            _saveFaceDataToStorage(faces.first);
+            
+            setState(() {
+              _lastDetectionTime = DateTime.now();
+              _lastDetectedFaceInfo = 'Rostro válido guardado';
+            });
+            
             _isProcessing = false;
           }
         } else {
@@ -123,7 +140,9 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
         setState(() {});
       }
     } catch (e) {
-      print('Error al inicializar la cámara: $e');
+      setState(() {
+        _lastDetectedFaceInfo = 'Error al inicializar la cámara';
+      });
     }
   }
   
@@ -171,19 +190,54 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
             isFaceValid: _isFaceValid,
           ),
         ),
-        Padding(
+        Container(
           padding: const EdgeInsets.all(16.0),
-          child: Text(
-            'Estado: ${_isFaceValid ? "Rostro detectado correctamente" : "Ajuste su rostro"}',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: _isFaceValid ? Colors.green : Colors.red,
-            ),
+          color: Colors.black.withOpacity(0.1),
+          child: Column(
+            children: [
+              Text(
+                'Estado: ${_isFaceValid ? "Rostro detectado correctamente" : "Ajuste su rostro"}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: _isFaceValid ? Colors.green : Colors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _lastDetectedFaceInfo,
+                style: const TextStyle(fontSize: 14),
+              ),
+              if (_lastDetectionTime != null) Text(
+                'Última detección: ${_formatTime(_lastDetectionTime!)}',
+                style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+              ),
+            ],
           ),
         ),
       ],
     );
+  }
+  
+  String _formatTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
+  }
+  
+  /// Guarda los datos del rostro en almacenamiento seguro
+  Future<void> _saveFaceDataToStorage(FaceModel face) async {
+    try {
+      final String key = 'face_data_${DateTime.now().millisecondsSinceEpoch}';
+      final String value = face.toJsonString();
+      
+      await _secureStorage.write(key: key, value: value);
+      
+      // También guardamos el último ID para fácil acceso
+      await _secureStorage.write(key: 'last_face_id', value: key);
+    } catch (e) {
+      setState(() {
+        _lastDetectedFaceInfo = 'Error al guardar: $e';
+      });
+    }
   }
   
   Widget _buildPermissionRequest() {
