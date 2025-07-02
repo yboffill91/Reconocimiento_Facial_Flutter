@@ -1,16 +1,16 @@
-# first_flutter_app
+# FacialLandmarksModule
 
-A new Flutter project.
+Modulo de reconocimiento facial con google_ml_kit
 
-## Getting Started
+## Requisitos
 
-This project is a starting point for a Flutter application.
+- Flutter 3.10.5
+- Dart 2.19.2
+- Google ML Kit 0.16.3
+- Camera 0.10.5+9
+- Permission_handler 11.3.1
+- Flutter_secure_storage 9.0.0
 
-A few resources to get you started if this is your first Flutter project:
+## Desarrollado por
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- [Yasmany Boffill](https://github.com/yboffill91)
