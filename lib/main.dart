@@ -9,7 +9,7 @@ void main() async {
 }
 
 class FacialLandmarksApp extends StatelessWidget {
-  const FacialLandmarksApp({Key? key}) : super(key: key);
+  const FacialLandmarksApp({super.key});
 
   @override
   Widget build(BuildContext context) {

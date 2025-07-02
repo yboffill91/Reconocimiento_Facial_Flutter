@@ -8,27 +8,28 @@ import '../utils/permission_utils.dart';
 import '../models/face_model.dart';
 
 class FaceDetectionScreen extends StatefulWidget {
-  const FaceDetectionScreen({Key? key}) : super(key: key);
+  const FaceDetectionScreen({super.key});
 
   @override
   State<FaceDetectionScreen> createState() => _FaceDetectionScreenState();
 }
 
-class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsBindingObserver {
+class _FaceDetectionScreenState extends State<FaceDetectionScreen>
+    with WidgetsBindingObserver {
   bool _isCameraPermissionGranted = false;
   CameraController? _cameraController;
   FaceDetectorService? _faceDetectorService;
   List<CameraDescription> _cameras = [];
   bool _isFaceValid = false;
   bool _isProcessing = false;
-  
+
   // Almacenamiento seguro
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-  
+
   // Información del rostro detectado
   String _lastDetectedFaceInfo = 'Ningún rostro detectado aún';
   DateTime? _lastDetectionTime;
-  
+
   @override
   void initState() {
     super.initState();
@@ -44,12 +45,19 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
   }
   
   @override
+  void deactivate() {
+    // Asegurarnos de liberar los recursos cuando el widget se desactiva
+    _stopCamera();
+    super.deactivate();
+  }
+
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Manejar el ciclo de vida de la app
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
-    
+
     if (state == AppLifecycleState.inactive) {
       _stopCamera();
     } else if (state == AppLifecycleState.resumed) {
@@ -62,12 +70,12 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
     setState(() {
       _isCameraPermissionGranted = status == PermissionStatus.granted;
     });
-    
+
     if (_isCameraPermissionGranted) {
       _setupCameras();
     }
   }
-  
+
   Future<void> _setupCameras() async {
     try {
       _cameras = await availableCameras();
@@ -78,52 +86,53 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
       });
     }
   }
-  
+
   Future<void> _initializeCamera() async {
     if (_cameras.isEmpty) return;
-    
+
     // Buscar la cámara frontal
     final frontCamera = _cameras.firstWhere(
       (camera) => camera.lensDirection == CameraLensDirection.front,
       orElse: () => _cameras.first,
     );
-    
+
     // Inicializar el controlador de cámara
     _cameraController = CameraController(
       frontCamera,
-      ResolutionPreset.medium, // Usar una resolución media para mejor rendimiento
+      ResolutionPreset
+          .medium, // Usar una resolución media para mejor rendimiento
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.yuv420,
     );
-    
+
     try {
       await _cameraController!.initialize();
-      
+
       // Inicializar servicio de detección facial
       _faceDetectorService = FaceDetectorService();
-      
+
       // Suscribirse al stream de rostros detectados
       _faceDetectorService!.facesStream.listen((List<FaceModel> faces) {
         if (faces.isNotEmpty) {
           // Verificar si el rostro cumple criterios
           final isValid = faces.length == 1 && faces.first.isValid();
-          
+
           setState(() {
             _isFaceValid = isValid;
           });
-          
+
           // Acción cuando se detecta un rostro válido
           if (isValid && !_isProcessing) {
             _isProcessing = true;
-            
+
             // Guardar en almacenamiento seguro
             _saveFaceDataToStorage(faces.first);
-            
+
             setState(() {
               _lastDetectionTime = DateTime.now();
               _lastDetectedFaceInfo = 'Rostro válido guardado';
             });
-            
+
             _isProcessing = false;
           }
         } else {
@@ -132,10 +141,10 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
           });
         }
       });
-      
+
       // Iniciar el procesamiento de imágenes
       _startImageProcessing();
-      
+
       if (mounted) {
         setState(() {});
       }
@@ -145,42 +154,60 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
       });
     }
   }
-  
+
   Future<void> _startImageProcessing() async {
-    // En una implementación real, aquí configurarías un ImageStream para procesar las imágenes
-    // Por ahora, solo mostraremos la vista previa
-    // Esta es una implementación simulada que normalmente procesaría frames
-  }
-  
-  void _stopCamera() {
-    if (_cameraController != null) {
-      _cameraController!.dispose();
-      _cameraController = null;
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
     }
     
-    if (_faceDetectorService != null) {
-      _faceDetectorService!.dispose();
-      _faceDetectorService = null;
+    try {
+      // Iniciar el stream de imágenes
+      _cameraController!.startImageStream((CameraImage image) {
+        if (!_isProcessing) {
+          // Procesar la imagen con el detector facial
+          _faceDetectorService?.processImage(image, _cameraController!.description);
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _lastDetectedFaceInfo = 'Error al procesar imágenes: $e';
+      });
+    }
+  }
+
+  void _stopCamera() {
+    try {
+      // Detener primero los servicios
+      if (_faceDetectorService != null) {
+        _faceDetectorService!.dispose();
+        _faceDetectorService = null;
+      }
+      
+      // Luego detener la cámara con un pequeño delay
+      if (_cameraController != null && _cameraController!.value.isInitialized) {
+        _cameraController!.dispose();
+        _cameraController = null;
+      }
+    } catch (e) {
+      print('Error al detener recursos: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detección Facial'),
-      ),
+      appBar: AppBar(title: const Text('Detección Facial')),
       body: _isCameraPermissionGranted
           ? _buildCameraView()
           : _buildPermissionRequest(),
     );
   }
-  
+
   Widget _buildCameraView() {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     return Column(
       children: [
         Expanded(
@@ -204,33 +231,34 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                _lastDetectedFaceInfo,
-                style: const TextStyle(fontSize: 14),
-              ),
-              if (_lastDetectionTime != null) Text(
-                'Última detección: ${_formatTime(_lastDetectionTime!)}',
-                style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-              ),
+              Text(_lastDetectedFaceInfo, style: const TextStyle(fontSize: 14)),
+              if (_lastDetectionTime != null)
+                Text(
+                  'Última detección: ${_formatTime(_lastDetectionTime!)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
             ],
           ),
         ),
       ],
     );
   }
-  
+
   String _formatTime(DateTime time) {
     return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
   }
-  
+
   /// Guarda los datos del rostro en almacenamiento seguro
   Future<void> _saveFaceDataToStorage(FaceModel face) async {
     try {
       final String key = 'face_data_${DateTime.now().millisecondsSinceEpoch}';
       final String value = face.toJsonString();
-      
+
       await _secureStorage.write(key: key, value: value);
-      
+
       // También guardamos el último ID para fácil acceso
       await _secureStorage.write(key: 'last_face_id', value: key);
     } catch (e) {
@@ -239,17 +267,13 @@ class _FaceDetectionScreenState extends State<FaceDetectionScreen> with WidgetsB
       });
     }
   }
-  
+
   Widget _buildPermissionRequest() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.camera_alt,
-            size: 100,
-            color: Colors.grey,
-          ),
+          const Icon(Icons.camera_alt, size: 100, color: Colors.grey),
           const SizedBox(height: 16),
           const Text(
             'Se requiere acceso a la cámara',

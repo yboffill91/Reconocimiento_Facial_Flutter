@@ -6,13 +6,13 @@ class CameraView extends StatelessWidget {
   final CameraController controller;
   final FaceDetectorService faceDetectorService;
   final bool isFaceValid;
-  
+
   const CameraView({
-    Key? key,
+    super.key,
     required this.controller,
     required this.faceDetectorService,
     required this.isFaceValid,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class CameraView extends StatelessWidget {
       children: [
         // Vista de la cámara
         CameraPreview(controller),
-        
+
         // Marco para el rostro (verde cuando es válido)
         StreamBuilder<List<dynamic>>(
           stream: faceDetectorService.facesStream,
@@ -33,16 +33,14 @@ class CameraView extends StatelessWidget {
             if (snapshot.hasData && snapshot.data!.isNotEmpty) {
               // Mostrar un overlay para el rostro
               return CustomPaint(
-                painter: FaceOverlayPainter(
-                  isFaceValid: isFaceValid,
-                ),
+                painter: FaceOverlayPainter(isFaceValid: isFaceValid),
                 child: Container(),
               );
             }
             return Container();
           },
         ),
-        
+
         // Indicaciones para el usuario
         Positioned(
           bottom: 30,
@@ -53,7 +51,9 @@ class CameraView extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              isFaceValid ? 'Rostro detectado correctamente' : 'Centre su rostro en la cámara',
+              isFaceValid
+                  ? 'Rostro detectado correctamente'
+                  : 'Centre su rostro en la cámara',
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -66,32 +66,28 @@ class CameraView extends StatelessWidget {
 /// Clase para dibujar el contorno facial
 class FaceOverlayPainter extends CustomPainter {
   final bool isFaceValid;
-  
+
   FaceOverlayPainter({required this.isFaceValid});
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = isFaceValid ? Colors.green : Colors.red
       ..strokeWidth = 3.0
       ..style = PaintingStyle.stroke;
-    
+
     // Dibujar un óvalo que simula un rostro centrado
     final center = Offset(size.width / 2, size.height / 2);
     final radiusX = size.width * 0.25; // 25% del ancho
     final radiusY = size.height * 0.3; // 30% del alto
-    
+
     canvas.drawOval(
-      Rect.fromCenter(
-        center: center,
-        width: radiusX * 2,
-        height: radiusY * 2,
-      ),
+      Rect.fromCenter(center: center, width: radiusX * 2, height: radiusY * 2),
       paint,
     );
   }
 
   @override
-  bool shouldRepaint(FaceOverlayPainter oldDelegate) => 
+  bool shouldRepaint(FaceOverlayPainter oldDelegate) =>
       isFaceValid != oldDelegate.isFaceValid;
 }
